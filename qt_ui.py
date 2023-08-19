@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
     QGridLayout,
+    QMessageBox,
 )
 
 from pymahjong import MahjongEnv
@@ -20,7 +21,7 @@ from typing import Union, List
 import numpy as np
 
 from utils import ACTION_TRANSLATION_TABLE
-from ui_utils import print_game_status, print_curr_scores
+from ui_utils import print_game_status, print_curr_scores, print_detailed_winner_info
 from enum import IntEnum
 
 from gamecore import MahjongGameCore
@@ -62,11 +63,11 @@ def parse_args():
 
 # Subclass QMainWindow to customize your application's main window
 class MainWindow(QMainWindow):
-    def __init__(self, qsize=(1350,660), font_sizes=(12,14,18)):
+    def __init__(self, qsize=(1350, 800), font_sizes=(18, 14, 16)):
         super().__init__()
         self.setWindowTitle("リーチ麻雀")
-        
-        self.font_sizes= font_sizes
+        self.setStyleSheet("QWidget{background-color:#f4f4f4}")
+        self.font_sizes = font_sizes
 
         self.setFixedSize(QSize(*qsize))
 
@@ -122,7 +123,7 @@ class MainWindow(QMainWindow):
                 self.tiles_layout.addWidget(
                     tile, i // 9, i % 9, alignment=Qt.AlignmentFlag.AlignCenter
                 )
-                tile.setFixedSize(QSize(45, 30))
+                tile.setFixedSize(QSize(35, 50))
                 self._set_font(tile, self.font_sizes[0])
             else:
                 self.actions_layout.addWidget(
@@ -178,7 +179,7 @@ class MainWindow(QMainWindow):
     def init_game(self):
         self.init_button.setEnabled(False)
         self.init_button.setText("")
-
+        self.init_button.setVisible(False)
         self.run()
 
     def render(self):
@@ -224,6 +225,7 @@ class MainWindow(QMainWindow):
 
     def _display_end_of_game(self):
         self.init_button.setEnabled(False)
+        self.init_button.setVisible(False)
         displayed_scores, displayed_sequence = self.gc.calc_final_scores()
         set_str = ""
 
@@ -233,8 +235,37 @@ class MainWindow(QMainWindow):
             set_str += f"Ranking {ranking}: Player {idx}, score={self.gc.game_status['cumulative_scores'][idx]}, pt={score:.1f}\n"
 
         set_str += "The game has ended.\nTo start a new game, restart the program."
-        self.info_labels[4].setText(set_str)
+        # self.info_labels[4].setText(set_str)
+        qbox = QMessageBox()
+        qbox.setBaseSize(100, 50)
+        self._set_font(qbox)
+        qbox.setWindowTitle("終わり")
+        qbox.setText(set_str)
+        # qbox.setStandardButtons(QMessageBox.Ok)
+        qbox.exec()
         self.repaint()
+
+    def _display_win_info(self):
+        off_result = self.gc.env.t.get_result()
+        info_str = ""
+        if len(self.gc.winners) > 0:
+            for player_idx in self.gc.winners:
+                info_str += print_detailed_winner_info(
+                    player_idx,
+                    off_result.results[player_idx],
+                    off_result.result_type.value == 1,
+                    player_idx == self.gc.game_status["oya"],
+                )
+
+        else:
+            info_str = "流局 结算"
+        qbox = QMessageBox()
+        qbox.setBaseSize(100, 50)
+        self._set_font(qbox)
+        qbox.setWindowTitle("结算")
+        qbox.setText(info_str)
+        # qbox.setStandardButtons(QMessageBox.Ok)
+        qbox.exec()
 
     def run(self, action=None, on_click=False):
         if not hasattr(self, "gc"):
@@ -247,7 +278,7 @@ class MainWindow(QMainWindow):
 
         if self.gc.is_terminated():
             self._display_end_of_game()
-            return
+            sys.exit(0)
 
         # clear status
         for bt in self.action_buttons:
@@ -266,8 +297,10 @@ class MainWindow(QMainWindow):
         if sigval == GameSignalType.current_player_response:
             self._set_avail_buttons(self.gc.env.get_valid_actions())
         elif sigval == GameSignalType.is_over:
+            self._display_win_info()
             self.init_button.setText("Continue?")
             self.init_button.setEnabled(True)
+            self.init_button.setVisible(True)
         self.render()
 
 
@@ -295,7 +328,7 @@ class GameRunThread(QThread):
             else:
                 self.gc.step()
                 self.render.emit(GameSignalType.running)
-                if self.gc.env.get_curr_player_id() != 0:
+                if self.gc.env.get_curr_player_id() not in (0, -1):
                     time.sleep(DELAY)
 
 

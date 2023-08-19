@@ -6,20 +6,34 @@ from utils import (
     CallingInfo,
     tile_exp,
     get_turn_from_river_tile,
+    get_yaku_suffix,
+    YAKU_LIST,
+    TILE_BACK,
 )
 from pymahjong import MahjongEnv
 import numpy as np
 
 # from gamecore import MahjongGameCore
-RIVER_WIDTH = 9
+RIVER_WIDTH = 12
+
+from MahjongPyWrapper import CounterResult
 
 
 def print_hand(player_hand_list: List[str], mask_hand: bool = False) -> str:
     pl_list = [tile_exp(tile) for tile in player_hand_list]
+    last_tile = None
+    if len(pl_list) % 3 == 2:
+        # last tile to be separated
+        pl_list, last_tile = pl_list[:-1], pl_list[-1]
+
     if not mask_hand:
-        hands = " ".join(pl_list)
+        hands = "".join(pl_list)
     else:
-        hands = " ".join("**" for _ in pl_list)
+        # hands = " ".join("**" for _ in pl_list)
+        hands = "".join(TILE_BACK for _ in pl_list)
+    if last_tile:
+        hands += "   " + (last_tile if not mask_hand else TILE_BACK)
+
     return hands
 
 
@@ -67,7 +81,7 @@ def print_river(
         elif enable_discard_from and "h" not in extra_info:
             ret += "@"
 
-        ret += "\n" if print_str_ct % RIVER_WIDTH == 0 else " "
+        ret += "\n" if print_str_ct % RIVER_WIDTH == 0 else ""
         print_str_ct += 1
     return ret + "\n"
 
@@ -85,9 +99,11 @@ def print_player(gc, player_idx: int, is_over=False) -> str:
     # print row by row
     ret = f"{WIND_TRANSLATION_TABLE[player_hand_dict['Wind'].lower()]}"
     ret += "*" if gc.env.get_curr_player_id() == player_idx else ""
-    current_score = game_status['cumulative_scores'][player_idx]+MahjongEnv.INIT_POINTS
+    current_score = (
+        game_status["cumulative_scores"][player_idx] + MahjongEnv.INIT_POINTS
+    )
     if not gc.env.is_over():
-        current_score-=player_hand_dict['Riichi']*1000
+        current_score -= player_hand_dict["Riichi"] * 1000
     ret += f"\t{current_score}\n"
     if is_over:
         mask_noneed = False
@@ -125,7 +141,8 @@ def print_dora_list(dora_ind_list: list, n_active_dora: int) -> str:
         JI_DECODE.get(item.to_string(), item.to_string())
         for item in dora_ind_list[:n_active_dora]
     ]
-    dora_indicators.extend(["**"] * (5 - n_active_dora))
+    # dora_indicators.extend(["**"] * (5 - n_active_dora))
+    dora_indicators.extend([TILE_BACK] * (5 - n_active_dora))
     return f"[{'|'.join(dora_indicators)}]"
 
 
@@ -140,6 +157,40 @@ def print_curr_scores(_scores: np.ndarray) -> str:
     scores = [f"{'+' if sc>0 else ''}{sc}" for sc in _scores]
     ret = f"Player 2: {scores[2]}{ARROWS[0]}\nPlayer 3: {scores[3]}{ARROWS[1]}\nPlayer 1: {scores[1]}{ARROWS[-1]}\nPlayer 0: {scores[0]}{ARROWS[-2]}"
     return ret
+
+
+DORA_INDEXES = [22, 23, 24, 25]
+
+
+def print_detailed_winner_info(
+    player_idx: int,
+    player_ct: CounterResult,
+    is_tsumo: bool = False,
+    is_oya: bool = False,
+) -> str:
+    ret_str = f"Player {player_idx}:\n"
+
+    yaku_indexes = [i.value for i in player_ct.yakus]
+
+    for yaku_index in yaku_indexes:
+        if yaku_index not in DORA_INDEXES:
+            ret_str += f"{YAKU_LIST[yaku_index]}({get_yaku_suffix(yaku_index)})\n"
+
+    # merge all dora counts
+    dora_counter = {dora: yaku_indexes.count(dora) for dora in DORA_INDEXES}
+    for dora, ct in dora_counter.items():
+        if ct > 0:
+            ret_str += f"{YAKU_LIST[dora]}(+{ct})\n"
+
+    ret_str += f"\n{player_ct.fu}符 {player_ct.fan}番 "
+    if not is_tsumo:
+        ret_str += f"{player_ct.score1}點\n"
+    else:
+        if is_oya:
+            ret_str += f"{player_ct.score1}點∀\n"
+        else:
+            ret_str += f"{player_ct.score2}-{player_ct.score1}點\n"
+    return ret_str
 
 
 if __name__ == "__main__":

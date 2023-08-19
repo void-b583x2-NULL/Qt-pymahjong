@@ -15,6 +15,7 @@ from utils import (
     # is_discarding,
     is_forward_call,
     notation_to_idx,
+    tile_exp,
 )
 
 WINDS = list(WIND_TRANSLATION_TABLE.keys())
@@ -64,14 +65,17 @@ class MahjongGameCore(object):
             ):  # more games
                 self.extra += 1
 
+            self.game_status["game_count"] += change_oya
+
             if (
                 self.game_status["game_count"] >= self.max_game_count + self.extra
                 or np.min(self.game_status["cumulative_scores"])
-                < - MahjongEnv.INIT_POINTS
-                or self.game_status["game_count"] >= self.max_game_count - 1
+                < -MahjongEnv.INIT_POINTS
+                or self.game_status["game_count"] >= self.max_game_count
                 and np.max(self.game_status["cumulative_scores"])
                 >= START_POINT - MahjongEnv.INIT_POINTS
             ):
+                self.game_status["game_count"] -= change_oya
                 self.terminated = True
                 return
 
@@ -80,7 +84,7 @@ class MahjongGameCore(object):
                 self.game_status["honba"] += 1
             else:
                 self.game_status["honba"] = 0
-            self.game_status["game_count"] += change_oya
+
             self.game_status["game_wind"] = WINDS[
                 self.game_status["game_count"] // 4 % 4
             ]
@@ -102,14 +106,13 @@ class MahjongGameCore(object):
 
     def check_tenpai(self, player_idx: int):
         ten_tiles = self.env.t.players[player_idx].tenpai_to_string()
-
+        ten_list = [ten_tiles[i : i + 2] for i in range(0, len(ten_tiles), 2)]
         # player_hand_str = self.get_player_info(player_idx)["Hand"]
         # player_hand_str = player_hand_str.replace("0", "5")  # red doras
 
         # if not self._checker.convert_strlist_to_tiles(player_hand_str):
         #     return False
         # ten_list = self._checker.CheckTen().split()
-        ten_list = ten_tiles.split()
         total_tile_str = self.get_player_info(player_idx)["Hand"] + " ".join(
             str(calling) for calling in self.player_calling_info[player_idx]
         )
@@ -120,11 +123,16 @@ class MahjongGameCore(object):
         return len(ret_list) > 0
 
     def get_player_info(self, player_idx: int) -> defaultdict:
-        player_raw_str = self.env.t.players[player_idx].to_string()
+        enti = self.env.t.players[player_idx]
+        player_raw_str = enti.to_string()
         player_hand_dict = defaultdict(str)
         player_hand_dict.update(yaml.load(player_raw_str, Loader=yaml.FullLoader))
         if player_hand_dict["River"] is None:
             player_hand_dict["River"] = ""
+
+        player_hand_dict["Furiten"] = (
+            enti.riichi_furiten or enti.sutehai_furiten or enti.toujun_furiten
+        )
         return player_hand_dict
 
     def _update_player_infos(self):
@@ -330,23 +338,32 @@ class MahjongGameCore(object):
         self.game_status["cumulative_scores"][0] = -np.sum(
             self.game_status["cumulative_scores"][1:]
         )
+        self.game_status["riichibo"] = 0
 
         final_scores = np.array(self.game_status["cumulative_scores"], dtype=np.float32)
         final_scores = (final_scores - (START_POINT - MahjongEnv.INIT_POINTS)) / 1000
         # trick:slightly modify the value to enable sorting with seats
-        final_scores -= np.array(range(4)) * 1e-4
+        priority_seats = np.zeros((4,))
+        old_oya = (self.game_status["oya"] - self.game_status["game_count"]) % 4
+
+        for i, seat in enumerate(range(old_oya, old_oya + 4)):
+            priority_seats[seat % 4] = i
+
+        final_scores -= priority_seats * 1e-4
         displayed_scores = -np.sort(-final_scores)
         displayed_sequence = np.argsort(-final_scores)
         displayed_scores += BONUSES
 
         final_scores = np.round(displayed_scores, 1)
-        final_scores[0] = -np.sum(final_scores).round(1)
+        final_scores[0] = -np.sum(final_scores[1:]).round(1)
+
+        self.game_status["cumulative_scores"] += MahjongEnv.INIT_POINTS
         return final_scores, displayed_sequence
 
     # information
     def get_dora_info_str(self) -> str:
         ret_str = (
-            "寶牌指示: "
+            "寳牌指示: "
             + print_dora_list(self.env.t.dora_indicator, self.env.t.n_active_dora)
             + "\n"
         )
@@ -360,7 +377,7 @@ class MahjongGameCore(object):
         ):
             # riichi ron
             ret_str += (
-                "裏寶牌指示: "
+                "裏寳牌指示: "
                 + print_dora_list(
                     self.env.t.uradora_indicator, self.env.t.n_active_dora
                 )
@@ -384,8 +401,9 @@ class MahjongGameCore(object):
             current_score -= player_hand_dict["Riichi"] * 1000
         ret += f"\t{current_score}\n"
 
+        mask_noneed = False
+
         if self.env.is_over():
-            mask_noneed = False
             # calculate which cases should the tiles be open
             if len(self.winners) > 0:  # RON,TSUMO
                 mask_noneed = player_idx in self.winners
@@ -411,7 +429,16 @@ class MahjongGameCore(object):
             )
         ret += ">" + print_callings(player_calling_infos) + "\n"
         ret += print_river(player_hand_dict["River"].split(), self.current_turn)
-        ret += "リーチ" if player_hand_dict["Riichi"] else "" + "\n"
+        ret += "リーチ " if player_hand_dict["Riichi"] else ""
+        if player_idx == 0 or mask_noneed:
+            tenpai = self.env.t.players[player_idx].tenpai_to_string()
+            if len(tenpai) > 0:
+                tenpai = [tenpai[i : i + 2] for i in range(0, len(tenpai), 2)]
+                tenpai = "".join(tile_exp(tile) for tile in tenpai)
+                ret += tenpai + " 待ち"
+                if player_hand_dict["Furiten"]:
+                    ret += " 振听"
+        ret += "\n"
         return ret
 
 

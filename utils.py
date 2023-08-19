@@ -4,7 +4,24 @@ from pymahjong import MahjongEnv
 from typing import Union
 
 JI_TILE = "東南西北白發中"
-JI_DECODE = dict((f"{i+1}z", JI_TILE[i]) for i in range(len(JI_TILE)))
+# JI_DECODE = dict((f"{i+1}z", JI_TILE[i]) for i in range(len(JI_TILE)))
+# graphic utils (ultimate!!)
+
+JI_DECODE = {}
+# zipai
+JI_DECODE.update({f"{i}z": chr(0x1F000 - 1 + i) for i in range(1, 8)})
+JI_DECODE["5z"] = JI_DECODE["7z"]
+JI_DECODE["7z"] = chr(0x1F004)
+
+for idx, c in enumerate("msp"):
+    JI_DECODE.update({f"{i}{c}": chr(0x1F007 - 1 + idx * 9 + i) for i in range(1, 10)})
+
+JI_DECODE.update({f"0{c}": f"{JI_DECODE[f'5{c}']}*" for c in "mps"})
+
+
+# print(JI_DECODE['0s'])
+TILE_BACK = chr(0x1F02B)
+JI_DECODE["**"] = TILE_BACK
 
 
 def tile_exp(tile: str) -> str:
@@ -117,7 +134,8 @@ class CallingInfo(object):
                     ret_str[:right_idx] + ARROWS[self.from_player] + ret_str[right_idx:]
                 )
         else:
-            return self.calling_str
+            tile = self.calling_str[:2]
+            return f"**{tile}{tile}**"
 
 
 DISCARDING_SEQ = list(range(MahjongEnv.MAHJONG_TILE_TYPES))
@@ -152,10 +170,102 @@ def is_discarding(actions: Union[int, np.ndarray]) -> bool:
 def is_forward_call(a: int) -> bool:
     return a >= MahjongEnv.CHILEFT and a <= MahjongEnv.PON or a == MahjongEnv.MINKAN
 
-REMOVE_TILE_MARKS={ord(i):None for i in 'h-r'}
+
+REMOVE_TILE_MARKS = {ord(i): None for i in "h-r"}
+
 
 def get_turn_from_river_tile(tile: str) -> int:
     t = tile[2:]
     t = t.translate(REMOVE_TILE_MARKS)
     assert t.isdigit(), tile
     return int(t)
+
+
+YAKU_LIST = [
+    "无役",
+    "立直",
+    "断幺九",
+    "门前清自摸和",
+    "自风 東",
+    "自风 南",
+    "自风 西",
+    "自风 北",
+    "场风 東",
+    "场风 南",
+    "场风 西",
+    "场风 北",
+    "役牌 白",
+    "役牌 發",
+    "役牌 中",
+    "平和",
+    "一杯口",
+    "枪杠",
+    "岭上开花",
+    "海底捞月",
+    "河底捞鱼",
+    "一发",
+    "寳牌",
+    "裏寳牌",
+    "赤寳牌",
+    "北寳牌",
+    "混全带幺九",
+    "一气通贯",
+    "三色同顺",
+    "一番",
+    "两立直",
+    "三色同刻",
+    "三杠子",
+    "对对和",
+    "三暗刻",
+    "小三元",
+    "混老头",
+    "七对子",
+    "混全带幺九",
+    "一气通贯",
+    "三色同顺",
+    "纯全带幺九",
+    "混一色",
+    "二番",
+    "二杯口",
+    "纯全带幺九",
+    "混一色",
+    "三番",
+    "清一色",
+    "五番",
+    "清一色",
+    "六番",
+    "流局满贯",
+    "满贯",
+    "天和",
+    "地和",
+    "大三元",
+    "四暗刻",
+    "字一色",
+    "绿一色",
+    "清老头",
+    "国士无双",
+    "小四喜",
+    "四杠子",
+    "九莲宝灯",
+    "役满",
+    "四暗刻单骑",
+    "国士无双十三面",
+    "纯正九莲宝灯",
+    "大四喜",
+    "双倍役满",
+]
+
+# print(YAKU_LIST[54])
+YAKU_LIST_SEP = [
+    YAKU_LIST.index(item) for item in ["一番", "二番", "三番", "五番", "六番", "满贯", "役满", "双倍役满"]
+]
+
+# 8 categories
+YAKU_SUFFIXES = ["+1", "+2", "+3", "+5", "+6", "满贯", "役满", "双倍役满"]
+
+
+def get_yaku_suffix(yaku_index: int) -> str:
+    assert yaku_index < YAKU_LIST_SEP[-1]
+    for ind, sf in zip(YAKU_LIST_SEP, YAKU_SUFFIXES):
+        if yaku_index < ind:
+            return sf
