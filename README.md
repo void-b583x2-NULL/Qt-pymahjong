@@ -2,6 +2,8 @@
 
 This is a riichi mahjong game, based on `pymahjong==1.0.3` with a simple GUI, using Unicode chars of Mahjong tiles.
 
+![](./img/sample_ui.jpg)
+
 Due to the unique mechanism of `pymahjong`, it's awkward sometimes to make the game engine run as a player usually expects. I've tried my best to fit the habit of a common player and hope to make the environment follow the rules as Tenhou or MajSoul.
 
 ### Installation

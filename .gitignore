@@ -2,4 +2,5 @@ old_unused_code
 __pycache__
 .vscode
 *gui*
-img
+img/*.png
+img/back.jpg
