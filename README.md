@@ -18,6 +18,7 @@ Due to the unique mechanism of `pymahjong`, it's awkward sometimes to make the g
 Other available parameters (at present):
 
 `-f`: Automatically execute a game (feasible for debugging)
+
 `-m`: Disable more games when top points are still not enough
 
 ### Mechanisms which may cause behaviour unexpected
@@ -33,9 +34,13 @@ The fixed priority of red doras when discarding or making a call. This seems pro
 ### Character notations
 
 `%`: the last tile discarded
+
 `@`: the tile was discarded after drawn, not from hand
+
 `*`: the tile of red dora (Unicode majhong tiles don't have aka-tiles)
+
 ARROWS: indicating where it came from in callings
+
 `<>`: the tile declaring riichi
 
 ### Features on the way...
