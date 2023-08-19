@@ -62,20 +62,20 @@ def parse_args():
 
 # Subclass QMainWindow to customize your application's main window
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, qsize=(1350,660), font_sizes=(12,14,18)):
         super().__init__()
         self.setWindowTitle("リーチ麻雀")
+        
+        self.font_sizes= font_sizes
 
-        # button = QPushButton("Press Me!")
-
-        self.setFixedSize(QSize(960, 540))
+        self.setFixedSize(QSize(*qsize))
 
         self.board_layout = QGridLayout()
 
         self.info_labels = [QLabel() for _ in range(7)]
         for info_label in self.info_labels:
             font = info_label.font()
-            font.setPointSize(10)
+            font.setPointSize(self.font_sizes[0])
             info_label.setFont(font)
             info_label.setAlignment(
                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignJustify
@@ -90,11 +90,19 @@ class MainWindow(QMainWindow):
             self.board_layout.addWidget(self.info_labels[6], 2, 1)
 
         self.init_button = QPushButton("Start")
+        self._set_font(self.init_button, self.font_sizes[1])
         self.option_layout.addWidget(self.init_button)
         self.init_button.clicked.connect(self.init_game)
 
         self.signal_list = []
         self._render_layout()
+
+    @staticmethod
+    def _set_font(obj: QWidget, font_size: int = 12, bold: bool = False):
+        font = obj.font()
+        font.setPointSize(font_size)
+        font.setBold(bold)
+        obj.setFont(font)
 
     def _set_buttons_for_options(self):
         self.tiles_layout = QGridLayout()
@@ -114,7 +122,8 @@ class MainWindow(QMainWindow):
                 self.tiles_layout.addWidget(
                     tile, i // 9, i % 9, alignment=Qt.AlignmentFlag.AlignCenter
                 )
-                tile.setFixedSize(QSize(30, 20))
+                tile.setFixedSize(QSize(45, 30))
+                self._set_font(tile, self.font_sizes[0])
             else:
                 self.actions_layout.addWidget(
                     tile,
@@ -122,7 +131,8 @@ class MainWindow(QMainWindow):
                     ((i - MahjongEnv.MAHJONG_TILE_TYPES)) % 5,
                     alignment=Qt.AlignmentFlag.AlignCenter,
                 )
-                tile.setFixedSize(QSize(60, 40))
+                tile.setFixedSize(QSize(90, 60))
+                self._set_font(tile, self.font_sizes[1])
 
             tile.setEnabled(False)
             tile.setText(ACTION_TRANSLATION_TABLE[i])
@@ -147,10 +157,7 @@ class MainWindow(QMainWindow):
             alignment=Qt.AlignmentFlag.AlignCenter,
         )
         for label in self.status_label:
-            font = label.font()
-            font.setPointSize(12)
-            font.setBold(True)
-            label.setFont(font)
+            self._set_font(label, self.font_sizes[-1], True)
             label.setAlignment(
                 Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignJustify
             )
@@ -223,7 +230,7 @@ class MainWindow(QMainWindow):
         for ranking, (idx, score) in enumerate(
             zip(displayed_sequence, displayed_scores)
         ):
-            set_str += f"Ranking {ranking}: Player {idx}, score={self.gc.game_status['cumulative_scores'][idx]}, pt={score}\n"
+            set_str += f"Ranking {ranking}: Player {idx}, score={self.gc.game_status['cumulative_scores'][idx]}, pt={score:.1f}\n"
 
         set_str += "The game has ended.\nTo start a new game, restart the program."
         self.info_labels[4].setText(set_str)
@@ -299,7 +306,7 @@ if __name__ == "__main__":
     )  # TODO: write game config into a config.json to control game?
     if args.fast_through:
         DELAY = 0.1
-        
+
     app = QApplication(sys.argv)
 
     window = MainWindow()

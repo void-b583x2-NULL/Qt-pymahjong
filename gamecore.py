@@ -67,7 +67,7 @@ class MahjongGameCore(object):
             if (
                 self.game_status["game_count"] >= self.max_game_count + self.extra
                 or np.min(self.game_status["cumulative_scores"])
-                < -START_POINT - MahjongEnv.INIT_POINTS
+                < - MahjongEnv.INIT_POINTS
                 or self.game_status["game_count"] >= self.max_game_count - 1
                 and np.max(self.game_status["cumulative_scores"])
                 >= START_POINT - MahjongEnv.INIT_POINTS
