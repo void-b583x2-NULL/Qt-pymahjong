@@ -15,7 +15,7 @@ Due to the unique mechanism of `pymahjong`, it's awkward sometimes to make the g
 
 ### Get checkpoints
 
-From the official release https://github.com/Agony5757/mahjong/releases/v1.0.2 to get the `*.pth` official checkpoints.
+From the official release https://github.com/Agony5757/mahjong/releases/v1.0.2 to get the `*.pth` official checkpoints and put them under `chkpt/`.
 
 ### Run
 
