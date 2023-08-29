@@ -9,9 +9,13 @@ Due to the unique mechanism of `pymahjong`, it's awkward sometimes to make the g
 ### Installation
 
 `pip install -r requirements.txt`
+`torch` is not included in `requirements.txt` but it's required to install `torch` in the way the user is used to. 
 
 **Note:** For some purpose I modify the base repo of `pymahjong`, and please replace the `env_pymahjong.py` under the initial location (usually under `${CONDA_ENV_LOCATION}/Lib/site-packages/pymahjong/`) with the one given in this repo, or the program may probably NOT FUNCTION well!
 
+### Get checkpoints
+
+From the official release https://github.com/Agony5757/mahjong/releases/v1.0.2 to get the `*.pth` official checkpoints.
 
 ### Run
 

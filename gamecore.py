@@ -1,4 +1,5 @@
 from pymahjong import MahjongEnv
+from agent import MajAgent
 from utils import CallingInfo, CallingCategory
 from typing import Union, List, Tuple, Dict
 import numpy as np
@@ -30,7 +31,9 @@ np.random.seed(int(time.time()))
 
 
 class MahjongGameCore(object):
-    def __init__(self, total_games=8, enable_more_games=True) -> None:
+    def __init__(
+        self, total_games=8, enable_more_games=True, agents=["ddqn", "bc", "ddqn"]
+    ) -> None:
         super().__init__()
 
         self.env = MahjongEnv()
@@ -42,6 +45,14 @@ class MahjongGameCore(object):
         self.enable_more_games = enable_more_games
         # self.payoffs = np.zeros((4,))
         # self._checker = TileChecker()
+        self.agents = []
+        for type in agents:
+            path = None
+            if type == "ddqn":
+                path = "chkpt/mahjong_VLOG_CQL.pth"
+            elif type == "bc":
+                path = "chkpt/mahjong_VLOG_BC.pth"
+            self.agents.append(MajAgent(type, path))
 
     def is_terminated(self):
         return self.terminated
@@ -231,11 +242,18 @@ class MahjongGameCore(object):
         if not self.env.is_over():
             curr_player_id = self.env.get_curr_player_id()
 
-            if action is None:
-                valid_actions = self.env.get_valid_actions()
-                if MahjongEnv.PASS_RESPONSE in valid_actions:
-                    valid_actions = valid_actions[:-1]
-                a = np.random.choice(valid_actions)
+            if action is None:  # Not pre ordered
+                if curr_player_id == 0:
+                    # This part of code should only be triggered when -f is enabled to fast pass through
+                    valid_actions = self.env.get_valid_actions()
+                    if MahjongEnv.PASS_RESPONSE in valid_actions:
+                        valid_actions = valid_actions[:-1]
+                    a = np.random.choice(valid_actions)
+                else:
+                    a = self.agents[curr_player_id - 1].select_action(
+                        self.env.get_obs(curr_player_id),
+                        self.env.get_valid_actions(nhot=True),
+                    )
             else:
                 a = action
 

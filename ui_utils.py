@@ -190,6 +190,27 @@ def print_detailed_winner_info(
             ret_str += f"{player_ct.score1}點∀\n"
         else:
             ret_str += f"{player_ct.score2}-{player_ct.score1}點\n"
+
+    # special msg for big wins
+    fu, han = player_ct.fu, player_ct.fan
+    if han == 3 and fu >= 70 or han == 4 and fu >= 40 or han == 5:
+        ret_str += "满贯"
+    elif han in (6, 7):
+        ret_str += "跳满"
+    elif han in (8, 9, 10):
+        ret_str += "倍满"
+    elif han in (11, 12):
+        ret_str += "三倍满"
+    else:
+        yakuman_bais = ret_str.count("役满") + ret_str.count("双倍役满")
+        YAKUMAN_PREFIX = "双三四五六"
+        if yakuman_bais == 1:
+            ret_str += "役满"
+        elif yakuman_bais > 0:
+            ret_str += f"{YAKUMAN_PREFIX[yakuman_bais - 2]}倍役满"
+        elif han >= 13:
+            ret_str += "累计役满"
+
     return ret_str
 
 
