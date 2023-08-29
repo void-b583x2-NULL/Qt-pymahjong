@@ -4,4 +4,4 @@ __pycache__
 *gui*
 img/*.png
 img/back.jpg
-chkpt
+chkpt/*.pth
