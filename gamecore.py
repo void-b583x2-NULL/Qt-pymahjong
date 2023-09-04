@@ -24,29 +24,41 @@ WINDS = list(WIND_TRANSLATION_TABLE.keys())
 
 import time
 
-START_POINT = 30000
-BONUSES = np.array([15, 5, -5, -15], dtype=np.float32)
+# START_POINT = 30000
+# BONUSES = np.array([15, 5, -5, -15], dtype=np.float32)
 
 np.random.seed(int(time.time()))
 
 
 class MahjongGameCore(object):
     def __init__(
-        self, total_games=8, enable_more_games=True, agents=["ddqn", "bc", "ddqn"]
+        self,
+        config: dict
+        # total_games=8, enable_more_games=True, agents=["ddqn", "bc", "ddqn"]
     ) -> None:
         super().__init__()
+
+        self.max_game_count = config["n_games"]
+        self.extra = 0
+        self.enable_more_games = config["more_games"]
+        self.negative_continue = config["negative_continue"]
+        self.enable_honba_fee = config["enable_honba_fee"]
+        self.AL_continue = config["AL_continue"]
+
+        self.START_POINT = config["REACH_PT"]
+        MahjongEnv.INIT_POINTS = config["START_POINT"]
+        self.BONUSES = config["BONUS_POINTS"]
+        self.BONUSES = np.array(self.BONUSES, dtype=np.float32)
+
+        # print(MahjongEnv.INIT_POINTS)
 
         self.env = MahjongEnv()
         self.game_status = None
         self.terminated = False
         self.reset()
-        self.max_game_count = total_games
-        self.extra = 0
-        self.enable_more_games = enable_more_games
-        # self.payoffs = np.zeros((4,))
-        # self._checker = TileChecker()
+
         self.agents = []
-        for type in agents:
+        for type in config["opponents"]:
             path = None
             if type == "ddqn":
                 path = "chkpt/mahjong_VLOG_CQL.pth"
@@ -72,7 +84,7 @@ class MahjongGameCore(object):
                 self.enable_more_games
                 and self.extra < 4
                 and np.max(self.game_status["cumulative_scores"])
-                < START_POINT - MahjongEnv.INIT_POINTS
+                < self.START_POINT - MahjongEnv.INIT_POINTS
             ):  # more games
                 self.extra += 1
 
@@ -80,13 +92,29 @@ class MahjongGameCore(object):
 
             if (
                 self.game_status["game_count"] >= self.max_game_count + self.extra
-                or np.min(self.game_status["cumulative_scores"])
+                or not self.negative_continue
+                and np.min(self.game_status["cumulative_scores"])
                 < -MahjongEnv.INIT_POINTS
                 or self.game_status["game_count"] >= self.max_game_count
                 and np.max(self.game_status["cumulative_scores"])
-                >= START_POINT - MahjongEnv.INIT_POINTS
+                >= self.START_POINT - MahjongEnv.INIT_POINTS
             ):
                 self.game_status["game_count"] -= change_oya
+                self.terminated = True
+                return
+
+            # AL oya 1st fast terminate
+            if (
+                not self.AL_continue
+                and self.game_status["game_count"] == self.max_game_count - 1
+                and not change_oya
+                and np.max(self.game_status["cumulative_scores"])
+                == self.game_status["cumulative_scores"][self.game_status["oya"]]
+                and np.max(self.game_status["cumulative_scores"])
+                > -np.sort(-self.game_status["cumulative_scores"])[1]
+                and np.max(self.game_status["cumulative_scores"])
+                >= self.START_POINT - MahjongEnv.INIT_POINTS
+            ):
                 self.terminated = True
                 return
 
@@ -124,9 +152,10 @@ class MahjongGameCore(object):
         # if not self._checker.convert_strlist_to_tiles(player_hand_str):
         #     return False
         # ten_list = self._checker.CheckTen().split()
-        total_tile_str = self.get_player_info(player_idx)["Hand"] + " ".join(
-            str(calling) for calling in self.player_calling_info[player_idx]
-        )
+        total_tile_str = self.get_player_info(player_idx)["Hand"]
+        # + " ".join(
+        #     str(calling) for calling in self.player_calling_info[player_idx]
+        # )
         ret_list = []
         for ten in ten_list:
             if total_tile_str.count(ten) < 4:  # avoid virtual ten
@@ -275,7 +304,10 @@ class MahjongGameCore(object):
                     specified_tile = notation_to_idx(specified_tile)
 
             # step function
-            self.env.step(curr_player_id, a, specified_tile=specified_tile)
+            self.env.step(
+                curr_player_id,
+                a,
+            )  # TODO: specified_tile=specified_tile
             self._update_player_infos()
 
             # aftercare of the gameboard...
@@ -326,10 +358,10 @@ class MahjongGameCore(object):
         if self.last_action == MahjongEnv.TSUMO:
             assert len(self.winners) == 1, "Should be only 1 tsumoer"
             payoffs[self.winners[0]] += (
-                100 * 4 * self.game_status["honba"]
+                100 * 4 * self.game_status["honba"] * self.enable_honba_fee
                 + 1000 * self.game_status["riichibo"]
             )
-            payoffs -= 100 * self.game_status["honba"]
+            payoffs -= 100 * self.game_status["honba"] * self.enable_honba_fee
             self.game_status["riichibo"] = 0
         elif len(self.winners) > 0:
             for i in range(
@@ -338,10 +370,12 @@ class MahjongGameCore(object):
                 if i % 4 in self.winners:
                     break
             payoffs[i % 4] += (
-                100 * 3 * self.game_status["honba"]
+                100 * 3 * self.game_status["honba"] * self.enable_honba_fee
                 + 1000 * self.game_status["riichibo"]
             )
-            payoffs[self.loser] -= 100 * 3 * self.game_status["honba"]
+            payoffs[self.loser] -= (
+                100 * 3 * self.game_status["honba"] * self.enable_honba_fee
+            )
             self.game_status["riichibo"] = 0
         else:
             for player_hand_info in self.player_infos:
@@ -359,7 +393,9 @@ class MahjongGameCore(object):
         self.game_status["riichibo"] = 0
 
         final_scores = np.array(self.game_status["cumulative_scores"], dtype=np.float32)
-        final_scores = (final_scores - (START_POINT - MahjongEnv.INIT_POINTS)) / 1000
+        final_scores = (
+            final_scores - (self.START_POINT - MahjongEnv.INIT_POINTS)
+        ) / 1000
         # trick:slightly modify the value to enable sorting with seats
         priority_seats = np.zeros((4,))
         old_oya = (self.game_status["oya"] - self.game_status["game_count"]) % 4
@@ -370,7 +406,7 @@ class MahjongGameCore(object):
         final_scores -= priority_seats * 1e-4
         displayed_scores = -np.sort(-final_scores)
         displayed_sequence = np.argsort(-final_scores)
-        displayed_scores += BONUSES
+        displayed_scores += self.BONUSES
 
         final_scores = np.round(displayed_scores, 1)
         final_scores[0] = -np.sum(final_scores[1:]).round(1)

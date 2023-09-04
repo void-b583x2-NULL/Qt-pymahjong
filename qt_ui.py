@@ -40,20 +40,14 @@ from argparse import ArgumentParser
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("--n_games", "-n", type=int, default=8, help="Max n of games")
     parser.add_argument(
-        "--render_delay",
-        "-d",
-        type=float,
-        default=1.5,
-        help="render delay between step.",
+        "--config",
+        "-c",
+        type=str,
+        default="config/default.yaml",
+        help="base config for customized game control",
     )
-    parser.add_argument(
-        "--enable_more_games",
-        "-m",
-        action="store_false",
-        help="more games if not enough points",
-    )
+
     parser.add_argument(
         "--fast_through", "-f", action="store_true", help="fast terminate"
     )
@@ -63,8 +57,10 @@ def parse_args():
 
 # Subclass QMainWindow to customize your application's main window
 class MainWindow(QMainWindow):
-    def __init__(self, qsize=(1350, 800), font_sizes=(18, 14, 16)):
+    def __init__(self, config: dict, qsize=(1350, 800), font_sizes=(18, 14, 16)):
         super().__init__()
+        self.config = config
+
         self.setWindowTitle("リーチ麻雀")
         self.setStyleSheet("QWidget{background-color:#f4f4f4}")
         self.font_sizes = font_sizes
@@ -269,7 +265,7 @@ class MainWindow(QMainWindow):
 
     def run(self, action=None, on_click=False):
         if not hasattr(self, "gc"):
-            self.gc = MahjongGameCore(args.n_games, args.enable_more_games)
+            self.gc = MahjongGameCore(self.config)
             self._set_buttons_for_options()
             self.render()
         elif self.gc.env.is_over():
@@ -333,16 +329,19 @@ class GameRunThread(QThread):
 
 
 if __name__ == "__main__":
+    import yaml
+
     args = parse_args()
-    DELAY = (
-        args.render_delay
-    )  # TODO: write game config into a config.json to control game?
+    with open(args.config, "r", encoding="utf-8") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    DELAY = config["step_time"]
     if args.fast_through:
         DELAY = 0.1
 
     app = QApplication(sys.argv)
 
-    window = MainWindow()
+    window = MainWindow(config)
     window.show()
 
     # Start the event loop.

@@ -1,4 +1,6 @@
-pymahjong==1.0.3
+pymahjong==1.0.3 # You can build from source as well.
+torch # You can install on yourself
 numpy
 pyyaml
 pyqt6
+pyqt6-tools # On linux platform this may be necessary

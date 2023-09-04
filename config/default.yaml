@@ -1,0 +1,17 @@
+# Basic game settings
+n_games: 8 # Standard number of games. For a typical game that's 8 and 4 for half.
+more_games: true # If 1st doesn't get necessary points after AL, whether to continue the game
+negative_continue: false # If someone gets negative points, whether to allow the game to continue
+AL_continue: false # If oya gets 1st in AL, whether to continue the game
+
+enable_honba_fee: true # Whether to enable honba fee (in some rules like RCR, this is disabled)
+
+START_POINT: 25000 # INIT Points
+REACH_PT: 30000 # the necessary point of 1st to terminate extra games. Currently, it equals the rebate point (When calculating the fianl pt)
+BONUS_POINTS: [15, 5, -5, -15]
+
+# AI Agent settings
+opponents: ["ddqn", "bc", "ddqn"] # Player 1,2,3. currently, each choice should in "random", "bc", "ddqn"
+
+# animation render settings
+step_time: 1.5

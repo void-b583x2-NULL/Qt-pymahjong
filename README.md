@@ -1,6 +1,6 @@
 # Qt-Pymahjong
 
-This is a riichi mahjong game, based on `pymahjong==1.0.3` with a simple GUI, using Unicode chars of Mahjong tiles.
+This is a riichi mahjong game, based on `pymahjong` with a simple GUI, using Unicode chars of Mahjong tiles.
 
 ![](./img/sample_ui.jpg)
 
@@ -9,29 +9,30 @@ Due to the unique mechanism of `pymahjong`, it's awkward sometimes to make the g
 ### Installation
 
 `pip install -r requirements.txt`
-`torch` is not included in `requirements.txt` but it's required to install `torch` in the way the user is used to. 
 
-**Note:** For some purpose I modify the base repo of `pymahjong`, and please replace the `env_pymahjong.py` under the initial location (usually under `${CONDA_ENV_LOCATION}/Lib/site-packages/pymahjong/`) with the one given in this repo, or the program may probably NOT FUNCTION well!
+Some packages can be install by yourself, as is notated in the `.txt` file.
 
-### Get checkpoints
+**Note: If you're using the master branch of `pymahjong` or the current pip release version, replace the `env_pymahjong.py` under the initial location (usually under `${CONDA_ENV_LOCATION}/Lib/site-packages/pymahjong/`) with the one given in this repo, or the program may probably NOT FUNCTION well!** (Due to some initial bugs in the version)
 
-From the official release https://github.com/Agony5757/mahjong/releases/v1.0.2 to get the `*.pth` official checkpoints and put them under `chkpt/`.
+**If you're using the [Develop-EncoderV2](https://github.com/Agony5757/mahjong/tree/Develop-EncoderV2) branch and managed to install `pymahjong` from source, no extra operation will be needed.**
+
+### Get checkpoints for AI Agents
+
+From the official [release](https://github.com/Agony5757/mahjong/releases/v1.0.2) to get the `*.pth` official checkpoints and put them under `chkpt/`.
 
 ### Run
 
-`python qt_ui.py [-n <n_games>]`. For example, for a typical game `n_games=8` by default. The program will automatically maintain honbas.
+`python qt_ui.py [-c <config_yaml>]`. For example, for a typical game the setting is stored at `config/default.yaml` by default, and it's recommended to read the notations in this default yaml before you define a new game.
 
 Other available parameters (at present):
 
 `-f`: Automatically execute a game (feasible for debugging)
 
-`-m`: Disable more games when top points are still not enough
-
 ### Mechanisms which may cause behaviour unexpected
 
 #### May be fixed by future work (python code only):
 
-The randomness to choose a tile to An-Kan or Ka-Kan when multiple choices are available (though rare in real senarios)
+The randomness to choose a tile to An-Kan or Ka-Kan when multiple choices are available (though rare in real scenarios)
 
 #### Require diving into the cpp core to fix:
 
@@ -52,6 +53,5 @@ ARROWS: indicating where it came from in callings
 ### Features on the way...
 
 - Show who made a call just the moment
-- Customized config to control a game
 - More creative ideas perhaps?
 - ...
